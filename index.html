@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>EarnEasy – Wallet (Free Firebase)</title>
+
+<!-- Firebase (compat for easy vanilla JS) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
+
+<style>
+  :root{
+    --bg:#0f2027; --card:#162B36; --txt:#E8F1F5; --accent:#12c2e9; --accent2:#f64f59; --good:#39ff14;
+  }
+  *{box-sizing:border-box;font-family:Poppins,system-ui,Arial,sans-serif}
+  body{margin:0;background:linear-gradient(120deg,#0f2027,#203a43,#2c5364);color:var(--txt)}
+  header{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;background:linear-gradient(135deg,#12c2e9,#c471ed,#f64f59);box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  header h1{margin:0;font-size:20px;text-shadow:0 0 10px #fff}
+  .wrap{max-width:980px;margin:40px auto;padding:16px}
+  .card{background:rgba(255,255,255,0.06);backdrop-filter: blur(8px);border:1px solid rgba(255,255,255,.1);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .grid{display:grid;gap:16px}
+  .p16{padding:16px} .p24{padding:24px}
+  input,button{width:100%;padding:12px 14px;border-radius:12px;border:1px solid transparent;font-size:14px}
+  input{background:#0d1c24;color:var(--txt);outline:none;border-color:#274554}
+  input:focus{border-color:var(--accent)}
+  .btn{cursor:pointer;background:linear-gradient(45deg,#00f260,#0575e6);color:#fff;border:none;transition:.2s}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,.25)}
+  .btn.alt{background:linear-gradient(45deg,#f64f59,#c471ed)}
+  .link{background:none;border:none;color:#9ed7ff;text-decoration:underline;cursor:pointer;padding:0;margin-top:8px}
+  .flex{display:flex;gap:12px;align-items:center}
+  .space{height:14px}
+  .center{text-align:center}
+  .stat{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px;text-align:center}
+  .stat h3{margin:6px 0 2px;font-size:18px;color:var(--good);text-shadow:0 0 8px var(--good)}
+  .hide{display:none !important}
+
+  /* Minimal robot loader (pure CSS) */
+  #loader{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999}
+  .bot{
+    position:relative;width:120px;height:120px;border-radius:20px;
+    background:radial-gradient(80px 80px at 50% 40%,#3a7bd5,#00d2ff);
+    box-shadow:0 12px 40px rgba(0,210,255,.35), inset 0 -10px 24px rgba(0,0,0,.35);
+    animation:bounce 1.3s infinite;
+  }
+  .bot:before,.bot:after{
+    content:'';
+    position:absolute;top:34px;width:22px;height:22px;border-radius:50%;
+    background:#fff;box-shadow:0 0 14px rgba(255,255,255,.85);
+  }
+  .bot:before{left:28px}
+  .bot:after{right:28px}
+  .mouth{
+    position:absolute;left:50%;bottom:28px;transform:translateX(-50%);
+    width:54px;height:12px;border-radius:12px;background:#05202b;
+    box-shadow:inset 0 -4px 8px rgba(255,255,255,.15);
+  }
+  .antenna{
+    position:absolute;left:50%;top:-20px;transform:translateX(-50%);
+    width:4px;height:24px;background:#8be9ff;border-radius:2px;
+  }
+  .antenna:after{
+    content:'';position:absolute;left:50%;top:-10px;transform:translateX(-50%);
+    width:12px;height:12px;border-radius:50%;background:#ff5ed2;box-shadow:0 0 10px #ff5ed2;
+    animation:pulse 1.3s infinite;
+  }
+  @keyframes pulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.25)}}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+  #loader p{margin-top:16px;color:#fff;font-weight:600;letter-spacing:.3px}
+
+  .tabs{position:sticky;bottom:0;display:flex;gap:10px;justify-content:space-between;background:rgba(0,0,0,.35);backdrop-filter:blur(8px);padding:10px 12px;border-top:1px solid rgba(255,255,255,.12)}
+  .tab{flex:1;text-align:center;padding:10px;border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.15)}
+  .tab.active{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25)}
+  .right{float:right}
+</style>
+</head>
+<body>
+  <header>
+    <h1>EarnEasy With Muzammil</h1>
+    <button id="btnSignOut" class="btn alt right hide">Sign out</button>
+  </header>
+
+  <div class="wrap grid">
+    <!-- AUTH CARD -->
+    <div id="authCard" class="card p24">
+      <h2 class="center">Login / Signup</h2>
+      <div class="space"></div>
+      <input id="email" type="email" placeholder="Email" autocomplete="email" />
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+      <div class="space"></div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;">
+        <button id="btnLogin" class="btn">Login</button>
+        <button id="btnSignup" class="btn alt">Signup</button>
+      </div>
+      <button id="btnReset" class="link">Forgot password?</button>
+      <div id="verifyNote" class="center hide">Verification email sent. Please verify and re-login.</div>
+    </div>
+
+    <!-- APP CARD -->
+    <div id="appCard" class="card p24 hide">
+      <div class="grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat"><small>Total Withdrawn</small><h3 id="statWithdrawn">$0.00</h3></div>
+        <div class="stat"><small>Your Balance</small><h3 id="statBalance">$0.00</h3></div>
+        <div class="stat"><small>Ads Watched</small><h3 id="statAds">0</h3></div>
+      </div>
+      <div class="space"></div>
+      <div id="viewHome">
+        <h2>Home</h2>
+        <p>Watch ads and earn $0.20 each.</p>
+        <div class="space"></div>
+        <button id="btnWatch" class="btn">Watch Ad ($0.20)</button>
+      </div>
+      <div id="viewWallet" class="hide">
+        <h2>Wallet</h2>
+        <p class="center">Balance: <b id="balance">$0.00</b></p>
+        <div class="space"></div>
+        <button id="btnWithdraw" class="btn">Withdraw</button>
+        <div id="payouts" class="grid hide" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-top:12px">
+          <button class="btn">JazzCash</button>
+          <button class="btn">EasyPaisa</button>
+          <button class="btn">NayaPay</button>
+          <button class="btn">SadaPay</button>
+          <button class="btn">Bank</button>
+        </div>
+      </div>
+      <div id="viewUpdates" class="hide">
+        <h2>Updates</h2>
+        <p class="center">No updates yet.</p>
+      </div>
+      <div id="viewAccount" class="hide">
+        <h2>Account</h2>
+        <p>Email: <span id="meEmail"></span></p>
+        <p>User ID: <span id="meUid"></span></p>
+      </div>
+      <div class="space"></div>
+      <div class="tabs">
+        <div id="tabHome" class="tab active">Home</div>
+        <div id="tabWallet" class="tab">Wallet</div>
+        <div id="tabUpdates" class="tab">Updates</div>
+        <div id="tabAccount" class="tab">Account</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Robot Loader -->
+  <div id="loader">
+    <div>
+      <div class="bot"><div class="antenna"></div><div class="mouth"></div></div>
+      <p>Loading…</p>
+    </div>
+  </div>
+
+<script>
+  // ====== 1) Firebase Init ======
+  // TODO: paste your Firebase config here
+  const firebaseConfig = {
+    apiKey: "AIzaSyCzgGdLQMcJb2b4A7GO-56oET7sHSIy9Xo",
+    authDomain: "earning-ce250.firebaseapp.com",
+    projectId: "earning-ce250"
+    storageBucket: "earning-ce250.firebasestorage.app"
+    messagingSenderId: "56767119549"
+     appId: "1:56767119549:web:a6719676b7de10a1cf37d4"
+     measurementId: "G-636R6JZ47W"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  // ====== 2) UI helpers ======
+  const qs = (s)=>document.querySelector(s);
+  const show = (el, yes)=> el.classList[yes?'remove':'add']('hide');
+  const spin = (yes)=> qs('#loader').style.display = yes?'flex':'none';
+  const format = (n)=> '$' + Number(n||0).toFixed(2);
+
+  // ====== 3) State ======
+  let _uid = null;
+
+  // ====== 4) Auth handlers ======
+  qs('#btnSignup').onclick = async ()=>{
+    try{
+      spin(true);
+      const email = qs('#email').value.trim();
+      const pass  = qs('#password').value;
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+      _uid = cred.user.uid;
+      // Create wallet doc once
+      await db.collection('wallets').doc(_uid).set({ balance: 0, ads: 0, withdrawn: 0 }, { merge:true });
+      // Send verification mail
+      await cred.user.sendEmailVerification();
+      show(qs('#verifyNote'), true);
+      alert('Signup successful. Verification email sent.');
+    }catch(e){ alert(e.message); }
+    finally{ spin(false); }
+  };
+
+  qs('#btnLogin').onclick = async ()=>{
+    try{
+      spin(true);
+      const email = qs('#email').value.trim();
+      const pass  = qs('#password').value;
+      const cred = await auth.signInWithEmailAndPassword(email, pass);
+      if(!cred.user.emailVerified){
+        await cred.user.sendEmailVerification();
+        auth.signOut();
+        show(qs('#verifyNote'), true);
+        throw new Error('Please verify your email. Verification link sent again.');
+      }
+    }catch(e){ alert(e.message); }
+    finally{ spin(false); }
+  };
+
+  qs('#btnReset').onclick = async ()=>{
+    const email = qs('#email').value.trim();
+    if(!email) return alert('Enter your email first.');
+    try{
+      spin(true);
+      await auth.sendPasswordResetEmail(email);
+      alert('Password reset email sent.');
+    }catch(e){ alert(e.message); }
+    finally{ spin(false); }
+  };
+
+  qs('#btnSignOut').onclick = ()=> auth.signOut();
+
+  // ====== 5) Auth state listener ======
+  auth.onAuthStateChanged(async (user)=>{
+    if(user && user.emailVerified){
+      _uid = user.uid;
+      // UI swap
+      show(qs('#authCard'), false);
+      show(qs('#appCard'), true);
+      show(qs('#btnSignOut'), true);
+      qs('#meEmail').textContent = user.email;
+      qs('#meUid').textContent = user.uid;
+
+      // Realtime wallet
+      db.collection('wallets').doc(_uid).onSnapshot((doc)=>{
+        if(!doc.exists) return;
+        const { balance=0, ads=0, withdrawn=0 } = doc.data();
+        qs('#balance').textContent = format(balance).slice(1);
+        qs('#statBalance').textContent = format(balance);
+        qs('#statAds').textContent = ads;
+        qs('#statWithdrawn').textContent = format(withdrawn);
+      });
+    } else {
+      _uid = null;
+      show(qs('#appCard'), false);
+      show(qs('#btnSignOut'), false);
+      show(qs('#authCard'), true);
+    }
+  });
+
+  // ====== 6) Tabs (Home / Wallet / Updates / Account) with loader ======
+  function activate(viewId){
+    spin(true);
+    setTimeout(()=>{
+      ['#viewHome','#viewWallet','#viewUpdates','#viewAccount'].forEach(id=>show(qs(id), id===viewId));
+      ['#tabHome','#tabWallet','#tabUpdates','#tabAccount'].forEach(id=>qs(id).classList.remove('active'));
+      if(viewId==='#viewHome') qs('#tabHome').classList.add('active');
+      if(viewId==='#viewWallet') qs('#tabWallet').classList.add('active');
+      if(viewId==='#viewUpdates') qs('#tabUpdates').classList.add('active');
+      if(viewId==='#viewAccount') qs('#tabAccount').classList.add('active');
+      spin(false);
+    }, 700);
+  }
+  qs('#tabHome').onclick   = ()=> activate('#viewHome');
+  qs('#tabWallet').onclick = ()=> activate('#viewWallet');
+  qs('#tabUpdates').onclick= ()=> activate('#viewUpdates');
+  qs('#tabAccount').onclick= ()=> activate('#viewAccount');
+
+  // ====== 7) Watch Ad & Withdraw logic ======
+  qs('#btnWatch').onclick = async ()=>{
+    if(!_uid) return alert('Login first');
+    try{
+      spin(true);
+      const ref = db.collection('wallets').doc(_uid);
+      const snap = await ref.get();
+      const data = snap.data() || { balance:0, ads:0, withdrawn:0 };
+      const balance = (data.balance||0) + 0.20;
+      const ads = (data.ads||0) + 1;
+      await ref.update({ balance, ads });
+      activate('#viewHome');
+    }catch(e){ alert(e.message); }
+    finally{ spin(false); }
+  };
+
+  qs('#btnWithdraw').onclick = async ()=>{
+    if(!_uid) return alert('Login first');
+    try{
+      spin(true);
+      const ref = db.collection('wallets').doc(_uid);
+      const snap = await ref.get();
+      const { balance=0, withdrawn=0 } = snap.data() || {};
+      if(balance < 10){
+        alert('Minimum $10 required to withdraw!');
+        show(qs('#payouts'), false);
+      } else {
+        // Show payout methods only when eligible
+        show(qs('#payouts'), true);
+        // For demo: on first click, simulate immediate reset (you can add form/modal)
+        const onClick = async (e)=>{
+          await ref.update({ withdrawn: withdrawn + balance, balance: 0 });
+          alert('Withdrawal requested!');
+          show(qs('#payouts'), false);
+          // remove listeners (one-shot)
+          Array.from(qs('#payouts').children).forEach(b=>b.removeEventListener('click', onClick));
+        };
+        Array.from(qs('#payouts').children).forEach(b=>b.addEventListener('click', onClick));
+      }
+    }catch(e){ alert(e.message); }
+    finally{ spin(false); }
+  };
+</script>
+
+<!-- ============ OPTIONAL: Client-side encryption helpers (Mega-style) ============
+Add a separate passphrase input & call encrypt/decrypt before write/read.
+Keeps encrypted blob in Firestore; server can't read without the key. ============
+<script>
+async function deriveKey(pass, salt){
+  const enc = new TextEncoder();
+  const keyMat = await crypto.subtle.importKey('raw', enc.encode(pass), {name:'PBKDF2'}, false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt, iterations:100000, hash:'SHA-256'},
+    keyMat, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']
+  );
+}
+async function encryptJSON(obj, pass){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(pass, salt);
+  const data = new TextEncoder().encode(JSON.stringify(obj));
+  const ct   = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, data));
+  return { salt: Array.from(salt), iv: Array.from(iv), ct: Array.from(ct) };
+}
+async function decryptJSON(payload, pass){
+  const salt = new Uint8Array(payload.salt);
+  const iv   = new Uint8Array(payload.iv);
+  const ct   = new Uint8Array(payload.ct);
+  const key  = await deriveKey(pass, salt);
+  const pt   = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+</script>
+=============================================================================== -->
+</body>
+</html>
